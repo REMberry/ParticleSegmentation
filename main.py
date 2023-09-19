@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QApplication, QFileDialog
+from PyQt5.QtWidgets import QApplication, QFileDialog
 from PyQt5.QtWidgets import QMessageBox
 from pathlib import Path
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
@@ -111,26 +111,35 @@ class MainWindow(uiclass, baseclass):
     
     def segmentImageClick(self):
         
-        self.setupSegmentation()
-        self.segmentImage()
+        self.startSegmentation()
     
-    def setupSegmentation(self):
+    def startSegmentation(self):
         sam_checkpoint = "sam_vit_h_4b8939.pth"
         model_type = "vit_h"
-        device = "cpu"
+        device = "cuda"
         
         sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         sam.to(device=device)
         
-        self.mask_generator = SamAutomaticMaskGenerator(
+        mask_generator = SamAutomaticMaskGenerator(
             model=sam,
             points_per_side=64,
             pred_iou_thresh=0.86,
             stability_score_thresh=0.92,
-            crop_n_layers=1,
+            crop_n_layers=0,
             crop_n_points_downscale_factor=1,
             min_mask_region_area=10,  # Requires open-cv to run post-processing
         )
+        
+        print('Start Segmentation')
+        self.masks = mask_generator.generate(self.imageRaw)
+        print('Finish Segmentation')
+        
+        areas = [d['area'] for d in self.masks]
+        print(areas)
+ 
+        self.show_anns(self.masks )
+        
         
         
     def list_attributes_and_values(self, obj):
@@ -142,16 +151,6 @@ class MainWindow(uiclass, baseclass):
                     print(f"{attr_name} : {attr_value}")
                 except Exception as e:
                     print(f"Couldn't retrieve value for {attr_name}. Reason: {e}")    
-    
-    def segmentImage(self):
-        print('Start Segmentation')
-        self.masks = self.mask_generator.generate(self.imageRaw)
-        print('Finish Segmentation')
-        
-        areas = [d['area'] for d in self.masks]
-        print(areas)
- 
-        self.show_anns(self.masks )
         
     
     def loadImage(self):
